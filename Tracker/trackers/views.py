@@ -8,17 +8,20 @@ from django.views.decorators.http import require_POST
 from .models import Column, Task
 
 
-
 def about(request):
     return HttpResponse("<h7>Їбати за карпати</h7>")
+
 
 def Skeb(request):
     return HttpResponse("<h5>Skebooob</h5>")
 
+
 def board(request):
-    # Колонки по position; задачи внутри колонок уже отсортированы по Meta.ordering
     columns = Column.objects.all().order_by("position").prefetch_related("tasks")
     return render(request, "trackers/dashboard.html", {"columns": columns})
+
+
+# -------------------- КОЛОНКИ --------------------
 
 def add_column(request):
     if request.method == "POST":
@@ -38,6 +41,29 @@ def add_column(request):
 
     return redirect("board")
 
+
+@require_POST
+def delete_column(request, column_id):
+    column = get_object_or_404(Column, pk=column_id)
+    column.delete()
+    return redirect("board")
+
+
+def edit_column(request, column_id):
+    column = get_object_or_404(Column, pk=column_id)
+
+    if request.method == "POST":
+        new_title = (request.POST.get("title") or "").strip()
+        if new_title:
+            with transaction.atomic():
+                column = Column.objects.select_for_update().get(pk=column_id)
+                column.title = new_title
+                column.save()
+    return redirect("board")
+
+
+# -------------------- ЗАДАЧІ --------------------
+
 def add_task(request, column_id: int):
     column = get_object_or_404(Column, id=column_id)
 
@@ -47,7 +73,6 @@ def add_task(request, column_id: int):
             return redirect("board")
 
         with transaction.atomic():
-            # блокируем задачи колонки, чтобы исключить гонки при одновременных добавлениях
             max_pos = (
                 Task.objects.select_for_update()
                 .filter(column=column)
@@ -62,27 +87,48 @@ def add_task(request, column_id: int):
 
     return redirect("board")
 
+
+@require_POST
+def delete_task(request, task_id):
+    task = get_object_or_404(Task, pk=task_id)
+    task.delete()
+    return redirect("board")
+
+
+def edit_task(request, task_id):
+    task = get_object_or_404(Task, pk=task_id)
+
+    if request.method == "POST":
+        new_title = (request.POST.get("title") or "").strip()
+        if new_title:
+            with transaction.atomic():
+                task = Task.objects.select_for_update().get(pk=task_id)
+                task.title = new_title
+                task.save()
+    return redirect("board")
+
+
+# Drag and drop
+
 @require_POST
 def move_task(request):
     try:
         data = json.loads(request.body.decode("utf-8"))
         task_id = int(data["task_id"])
         to_column_id = int(data["to_column_id"])
-        to_index_0 = int(data["to_index"])  # индекс в списке DOM (0-based)
+        to_index_0 = int(data["to_index"])  # 0-based
     except Exception:
         return HttpResponseBadRequest("Bad payload")
 
     with transaction.atomic():
-        # блокируем перемещаемую задачу
         task = get_object_or_404(Task.objects.select_for_update(), pk=task_id)
 
         old_col_id = task.column_id
         old_pos = task.position
         new_col_id = to_column_id
-        new_pos = max(1, to_index_0 + 1)  # в БД позиции 1-based
+        new_pos = max(1, to_index_0 + 1)  # 1-based
 
         if new_col_id == old_col_id:
-            # Перемещение внутри одной колонки
             count_in_col = Task.objects.filter(column_id=old_col_id).count()
             new_pos = min(new_pos, count_in_col)
 
@@ -107,21 +153,17 @@ def move_task(request):
             task.save(update_fields=["position", "updated_at"])
 
         else:
-
             Task.objects.filter(column_id=old_col_id, position__gt=old_pos).update(
                 position=models.F("position") - 1
             )
 
-            # 2) Вычислить корректную позицию в целевой колонке
             count_in_target = Task.objects.filter(column_id=new_col_id).count()
             new_pos = min(max(1, new_pos), count_in_target + 1)
 
-            # 3) Освободить место в целевой колонке
             Task.objects.filter(column_id=new_col_id, position__gte=new_pos).update(
                 position=models.F("position") + 1
             )
 
-            # 4) Перенести задачу
             task.column_id = new_col_id
             task.position = new_pos
             task.updated_at = now()

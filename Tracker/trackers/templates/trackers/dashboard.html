@@ -22,20 +22,49 @@
                  ondrop="drop(event)"
                  ondragover="allowDrop(event)"
                  ondragleave="leaveDrop(event)">
-                <h2 class="font-semibold text-lg mb-2 text-white">{{ column.title }}</h2>
 
+                <!-- Заголовок колонки + кнопки -->
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="font-semibold text-lg text-white">{{ column.title }}</h2>
+                    <div class="flex gap-1">
+                        <form method="post" action="{% url 'edit_column' column.id %}" onsubmit="return editColumnPrompt(this)">
+                            {% csrf_token %}
+                            <input type="hidden" name="title">
+                            <button type="submit" class="text-yellow-400 text-sm">✏️</button>
+                        </form>
+                        <form method="post" action="{% url 'delete_column' column.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="text-red-500 text-sm">🗑️</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Список задач -->
                 <div class="space-y-2 min-h-[100px]">
                     {% for task in column.tasks.all %}
-                    <div class="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-move transition"
+                    <div class="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-move transition flex justify-between items-center"
                          draggable="true"
                          ondragstart="drag(event)"
                          id="task-{{ task.id }}"
                          data-task-id="{{ task.id }}">
-                        {{ task.title }}
+
+                        <span>{{ task.title }}</span>
+                        <div class="flex gap-1">
+                            <form method="post" action="{% url 'edit_task' task.id %}" onsubmit="return editTaskPrompt(this)">
+                                {% csrf_token %}
+                                <input type="hidden" name="title">
+                                <button type="submit" class="text-yellow-400 text-sm">✏️</button>
+                            </form>
+                            <form method="post" action="{% url 'delete_task' task.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="text-red-500 text-sm">🗑️</button>
+                            </form>
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
 
+                <!-- Додавання нової задачі -->
                 <form method="post" action="{% url 'add_task' column.id %}" class="mt-3">
                     {% csrf_token %}
                     <input name="title" placeholder="New task"
@@ -48,6 +77,7 @@
             </div>
             {% endfor %}
 
+            <!-- Додавання нової колонки -->
             <form method="post" action="{% url 'add_column' %}" class="bg-gray-800 shadow p-4 rounded w-64">
                 {% csrf_token %}
                 <input name="title" placeholder="New column"
@@ -95,7 +125,7 @@
                     closest = card;
                 }
             }
-            return closest; // null → вставка в конец
+            return closest;
         }
 
         async function drop(ev) {
@@ -113,7 +143,7 @@
             const taskId = Number(draggedEl.dataset.taskId);
             const toColumnId = Number(columnEl.dataset.columnId);
             const items = [...list.querySelectorAll('[data-task-id]')];
-            const toIndex = items.findIndex(el => el === draggedEl); // 0-based
+            const toIndex = items.findIndex(el => el === draggedEl);
 
             try {
                 const resp = await fetch("{% url 'task_move' %}", {
@@ -134,6 +164,20 @@
                 alert("Не удалось переместить: " + e.message);
                 location.reload();
             }
+        }
+
+        function editColumnPrompt(form) {
+            const newTitle = prompt("Enter new column title:");
+            if (!newTitle) return false;
+            form.title.value = newTitle;
+            return true;
+        }
+
+        function editTaskPrompt(form) {
+            const newTitle = prompt("Enter new task title:");
+            if (!newTitle) return false;
+            form.title.value = newTitle;
+            return true;
         }
     </script>
 </body>
