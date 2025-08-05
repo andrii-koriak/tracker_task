@@ -9,8 +9,9 @@ SECRET_KEY = 'django-insecure-rz6*%rgbhj223kgn!!c-2r&9491q*2f*mb^ixe@rfiys1f$aon
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
-
+AUTH_USER_MODEL = 'trackers.User'
+LOGIN_REDIRECT_URL = 'board'
+LOGOUT_REDIRECT_URL = 'login'
 
 INSTALLED_APPS = [
     'django.contrib.admin',

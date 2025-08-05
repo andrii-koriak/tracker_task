@@ -6,22 +6,58 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils.timezone import now
 from django.views.decorators.http import require_POST
 from .models import Column, Task
+from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from .forms import RegisterForm, LoginForm
+
+def register_view(request):
+    if request.method == 'POST':
+        form = RegisterForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect('board')
+    else:
+        form = RegisterForm()
+    return render(request, 'trackers/register.html', {'form': form})
 
 
-def about(request):
-    return HttpResponse("<h7>Їбати за карпати</h7>")
+def login_view(request):
+    if request.method == 'POST':
+        form = LoginForm(request, data=request.POST)
+        if form.is_valid():
+            login(request, form.get_user())
+            return redirect('board')
+        else:
+            print(form.errors)
+    else:
+        form = LoginForm()
+    return render(request, 'trackers/login.html', {'form': form})
 
+
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')
 
 def Skeb(request):
     return HttpResponse("<h5>Skebooob</h5>")
 
+@login_required
+def board(request):
+    if request.user.is_admin:
+        columns = Column.objects.all().order_by("position").prefetch_related("tasks")
+    else:
+        columns = Column.objects.filter(tasks__created_by=request.user).distinct()
+    return render(request, "trackers/dashboard.html", {"columns": columns})
 
 def board(request):
     columns = Column.objects.all().order_by("position").prefetch_related("tasks")
     return render(request, "trackers/dashboard.html", {"columns": columns})
 
 
-# -------------------- КОЛОНКИ --------------------
+#КОЛОНКИ
 
 def add_column(request):
     if request.method == "POST":
@@ -62,7 +98,7 @@ def edit_column(request, column_id):
     return redirect("board")
 
 
-# -------------------- ЗАДАЧІ --------------------
+#ЗАДАЧІ
 
 def add_task(request, column_id: int):
     column = get_object_or_404(Column, id=column_id)
@@ -108,8 +144,9 @@ def edit_task(request, task_id):
     return redirect("board")
 
 
-# Drag and drop
 
+
+# Drag and drop
 @require_POST
 def move_task(request):
     try:
