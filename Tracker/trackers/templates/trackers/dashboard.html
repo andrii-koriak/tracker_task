@@ -13,7 +13,16 @@
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
     <div class="p-4">
-        <h1 class="text-3xl font-bold mb-6 text-white">🗂️ Task Board</h1>
+        <!-- Шапка с заголовком и кнопкой Logout -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-white">🗂️ Task Board</h1>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-white">
+                    Вийти з акаунту
+                </button>
+            </form>
+        </div>
 
         <div id="columns" class="flex gap-4 overflow-x-auto pb-4">
             {% for column in columns %}
@@ -78,7 +87,7 @@
             {% endfor %}
 
             <!-- Додавання нової колонки -->
-            <form method="post" action="{% url 'add_column' %}" class="bg-gray-800 shadow p-4 rounded w-64">
+            <form method="post" action="{% url 'add_column' %}" class="bg-gray-800 shadow p-4 rounded w-64 flex-shrink-0">
                 {% csrf_token %}
                 <input name="title" placeholder="New column"
                        class="p-1 w-full bg-gray-700 text-white border border-gray-600 rounded placeholder-gray-400"
