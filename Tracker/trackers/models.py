@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
+
 # Пользователь
 class User(AbstractUser):
     email = models.EmailField(unique=True)
@@ -12,6 +13,7 @@ class User(AbstractUser):
     def __str__(self):
         return self.email
 
+
 # Доска
 class Board(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="boards")
@@ -20,9 +22,15 @@ class Board(models.Model):
     def __str__(self):
         return f"{self.name} ({self.owner.email})"
 
+
 # Колонка
 class Column(models.Model):
-    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name="columns")
+    board = models.ForeignKey(
+        Board,
+        on_delete=models.CASCADE,
+        related_name="columns",
+        blank=True
+    )
     title = models.CharField(max_length=200)
     position = models.PositiveIntegerField()
 
@@ -30,7 +38,8 @@ class Column(models.Model):
         ordering = ["position", "id"]
 
     def __str__(self):
-        return f"{self.title} ({self.board.name})"
+        return f"{self.title} ({self.board.name if self.board else 'Без доски'})"
+
 
 # Задача
 class Task(models.Model):
